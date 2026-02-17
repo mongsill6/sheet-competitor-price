@@ -57,6 +57,8 @@ function extractPrice_(target) {
   const options = {
     muteHttpExceptions: true,
     followRedirects: true,
+    validateHttpsCertificates: true,
+    timeout: CONFIG.FETCH_TIMEOUT_SECONDS * 1000,
     headers: {
       'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
       'Accept': 'text/html,application/xhtml+xml,application/json',
@@ -111,14 +113,18 @@ function extractByImportXml_(target) {
     : SpreadsheetApp.getActiveSpreadsheet();
 
   const tempSheet = getOrCreateSheet_(ss, '_temp_xpath');
-  tempSheet.getRange('A1').setFormula(
-    `=IMPORTXML("${target.url}", "${target.xpath}")`
-  );
-  SpreadsheetApp.flush();
-  Utilities.sleep(5000);
+  let value;
+  try {
+    tempSheet.getRange('A1').setFormula(
+      `=IMPORTXML("${target.url}", "${target.xpath}")`
+    );
+    SpreadsheetApp.flush();
+    Utilities.sleep(5000);
 
-  const value = tempSheet.getRange('A1').getDisplayValue();
-  ss.deleteSheet(tempSheet);
+    value = tempSheet.getRange('A1').getDisplayValue();
+  } finally {
+    try { ss.deleteSheet(tempSheet); } catch (e) { /* 삭제 실패 무시 */ }
+  }
 
   if (!value || value === '#N/A' || value === '#ERROR!') {
     throw new Error('IMPORTXML 추출 실패');
